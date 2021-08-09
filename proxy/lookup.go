@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/rand"
 	"net"
+	"time"
 
 	"github.com/miekg/dns"
 	"github.com/sirupsen/logrus"
@@ -32,6 +33,57 @@ func (p *Proxy) RandomLookup(msg *dns.Msg, serverList []string) (*dns.Msg, error
 		}
 	}
 	return nil, fmt.Errorf("serverNotAvailable")
+}
+
+//Lookup record over multipler server return A/AAAA address list in string array
+
+func (p *Proxy) MultipleLookup(msg *dns.Msg, serverList []string) []string {
+	t := time.NewTicker(600 * time.Millisecond)
+	tmpMap := make(map[string]interface{}, 0)
+	resp := make(chan []string, 10)
+	for _, s := range serverList {
+		go lookup2Chan(msg, s, resp)
+	}
+	for {
+		select {
+		case <-t.C:
+			result := make([]string, 0)
+			for k, _ := range tmpMap {
+				result = append(result, k)
+			}
+			return result
+		case addr := <-resp:
+			for _, v := range addr {
+				tmpMap[v] = 1
+			}
+		}
+	}
+}
+
+/*
+func (p *Proxy) DecodeTypeAResponse(question string, answer []dns.RR) []string {
+	addressList := make([]string, 0)
+	for _, v := range answer {
+		if v.Header().Class == dns.TypeA {
+			record := strings.Split(v.String(), "\t")
+			ipAddr := strings.TrimSpace(record[4])
+			if net.ParseIP(ipAddr) != nil {
+				addressList = append(addressList, ipAddr)
+			}
+		}
+	}
+	return addressList
+}
+*/
+
+func lookup2Chan(msg *dns.Msg, server string, resp chan<- []string) {
+	result, err := Lookup(msg, server)
+	if err != nil {
+		return
+	}
+	resultlist := DecodeTypeAResponse(result.Answer)
+	logrus.Info("server:", server, "|REsult:", resultlist)
+	resp <- resultlist
 }
 
 //Lookup is used to get the response from external server

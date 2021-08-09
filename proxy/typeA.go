@@ -8,7 +8,7 @@ import (
 	"github.com/miekg/dns"
 )
 
-func (p *Proxy) DecodeTypeAResponse(question string, answer []dns.RR) []string {
+func DecodeTypeAResponse(answer []dns.RR) []string {
 	addressList := make([]string, 0)
 	for _, v := range answer {
 		if v.Header().Class == dns.TypeA {
