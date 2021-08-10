@@ -37,37 +37,43 @@ func (p *Proxy) RandomLookup(msg *dns.Msg, serverList []string) (*dns.Msg, error
 
 //Lookup record over multipler server return A/AAAA address list in string array
 
-func (p *Proxy) MultipleLookup(msg *dns.Msg, serverList []string) []string {
+func (p *Proxy) MultipleLookup(msg *dns.Msg, serverList []string) map[string]string {
 	t := time.NewTicker(600 * time.Millisecond)
-	tmpMap := make(map[string]interface{}, 0)
-	resp := make(chan []string, 10)
+	tmpMap := make(map[string]string, 0)
+	resp := make(chan *DNSReport, 10)
 	for _, s := range serverList {
 		go lookup2Chan(msg, s, resp)
 	}
 	for {
 		select {
 		case <-t.C:
-			result := make([]string, 0)
-			for k, _ := range tmpMap {
-				result = append(result, k)
-			}
-			return result
+			return tmpMap
 		case addr := <-resp:
-			for _, v := range addr {
-				tmpMap[v] = 1
+			for _, v := range addr.Record {
+				tmpMap[v] += addr.Server
 			}
 		}
 	}
 }
 
-func lookup2Chan(msg *dns.Msg, server string, resp chan<- []string) {
-	result, err := Lookup(msg, server)
+type DNSReport struct {
+	Server string
+	Record []string
+}
+
+func lookup2Chan(msg *dns.Msg, server string, reportChan chan<- *DNSReport) {
+	resp, err := Lookup(msg, server)
 	if err != nil {
 		return
 	}
-	resultlist := DecodeTypeAResponse(result.Answer)
-	logrus.Info("server:", server, "|REsult:", resultlist)
-	resp <- resultlist
+
+	records := DecodeTypeAResponse(resp.Answer)
+	result := &DNSReport{
+		Server: server + " ",
+		Record: records,
+	}
+
+	reportChan <- result
 }
 
 //Lookup is used to get the response from external server

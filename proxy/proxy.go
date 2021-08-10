@@ -78,18 +78,18 @@ func (p *Proxy) GetResponse(req *dns.Msg) (*dns.Msg, error) {
 	return resp, nil
 }
 
-func (p *Proxy) TableRender(name string, addrList []string) {
+func (p *Proxy) TableRender(name string, addrList map[string]string) {
 	fmt.Printf("[%s] DNS Lookup Result\n\n", name)
 
 	table := tablewriter.NewWriter(os.Stdout)
 
-	table.SetHeader([]string{"Addresss ", "ASN", "City", "Region", "Country", "Location", "Distance(KM)"})
+	table.SetHeader([]string{"Addresss ", "ASN", "City", "Region", "Country", "Location", "Distance(KM)", "DNS Server"})
 	table.SetAutoFormatHeaders(false)
 
-	for _, v := range addrList {
-		result := p.geo.Lookup(v)
+	for k, v := range addrList {
+		result := p.geo.Lookup(k)
 		distance := geoip.ComputeDistance(31.02, 121.26, result.Latitude, result.Longitude)
-		table.Append([]string{v, fmt.Sprintf("%-30.30s", result.SPName), fmt.Sprintf("%-16.16s", result.City), fmt.Sprintf("%-16.16s", result.Region), fmt.Sprintf("%-16.16s", result.Country), fmt.Sprintf("%6.2f , %6.2f", result.Latitude, result.Longitude), fmt.Sprintf("%8.0f", distance)})
+		table.Append([]string{k, fmt.Sprintf("%-30.30s", result.SPName), fmt.Sprintf("%-16.16s", result.City), fmt.Sprintf("%-16.16s", result.Region), fmt.Sprintf("%-16.16s", result.Country), fmt.Sprintf("%6.2f , %6.2f", result.Latitude, result.Longitude), fmt.Sprintf("%8.0f", distance), v})
 	}
 	table.Render()
 }
