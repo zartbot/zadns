@@ -2,11 +2,14 @@ package proxy
 
 import (
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/miekg/dns"
 	"github.com/sirupsen/logrus"
 	"github.com/zartbot/zadns/geoip"
+
+	"github.com/olekukonko/tablewriter"
 )
 
 func (p *Proxy) GetResponse(req *dns.Msg) (*dns.Msg, error) {
@@ -32,13 +35,7 @@ func (p *Proxy) GetResponse(req *dns.Msg) (*dns.Msg, error) {
 		{
 			//DEBUG multilookup
 			vaddList := p.MultipleLookup(req, serverList)
-			logrus.Warn("LB-Lookup:", vaddList)
-			for _, v := range vaddList {
-				result := p.geo.Lookup(v)
-				distance := geoip.ComputeDistance(31.02, 121.26, result.Latitude, result.Longitude)
-
-				fmt.Printf("LB-Lookup: %20s | %24s |ASN: %-30.30s | City: %-16.16s Region: %-20.20s Country: %-16.16s | Location: %10f,%10f Distance: %10f\n", question.Name, v, result.SPName, result.City, result.Region, result.Country, result.Latitude, result.Longitude, distance)
-			}
+			p.TableRender(question.Name, vaddList)
 
 			answer := p.GetFromCache(question.Name, question.Qtype)
 			if len(answer) > 0 {
@@ -79,4 +76,20 @@ func (p *Proxy) GetResponse(req *dns.Msg) (*dns.Msg, error) {
 		}
 	}
 	return resp, nil
+}
+
+func (p *Proxy) TableRender(name string, addrList []string) {
+	fmt.Printf("[%s] DNS Lookup Result\n\n", name)
+
+	table := tablewriter.NewWriter(os.Stdout)
+
+	table.SetHeader([]string{"Addresss ", "ASN", "City", "Region", "Country", "Location", "Distance(KM)"})
+	table.SetAutoFormatHeaders(false)
+
+	for _, v := range addrList {
+		result := p.geo.Lookup(v)
+		distance := geoip.ComputeDistance(31.02, 121.26, result.Latitude, result.Longitude)
+		table.Append([]string{v, fmt.Sprintf("%-30.30s", result.SPName), fmt.Sprintf("%-16.16s", result.City), fmt.Sprintf("%-16.16s", result.Region), fmt.Sprintf("%-16.16s", result.Country), fmt.Sprintf("%6.2f , %6.2f", result.Latitude, result.Longitude), fmt.Sprintf("%8.0f", distance)})
+	}
+	table.Render()
 }

@@ -60,22 +60,6 @@ func (p *Proxy) MultipleLookup(msg *dns.Msg, serverList []string) []string {
 	}
 }
 
-/*
-func (p *Proxy) DecodeTypeAResponse(question string, answer []dns.RR) []string {
-	addressList := make([]string, 0)
-	for _, v := range answer {
-		if v.Header().Class == dns.TypeA {
-			record := strings.Split(v.String(), "\t")
-			ipAddr := strings.TrimSpace(record[4])
-			if net.ParseIP(ipAddr) != nil {
-				addressList = append(addressList, ipAddr)
-			}
-		}
-	}
-	return addressList
-}
-*/
-
 func lookup2Chan(msg *dns.Msg, server string, resp chan<- []string) {
 	result, err := Lookup(msg, server)
 	if err != nil {
