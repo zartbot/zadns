@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/miekg/dns"
-	"github.com/sirupsen/logrus"
 	"github.com/zartbot/zadns/geoip"
 
 	"github.com/olekukonko/tablewriter"
@@ -28,7 +27,7 @@ func (p *Proxy) GetResponse(req *dns.Msg) (*dns.Msg, error) {
 	} else {
 		serverList = append(serverList, p.server...)
 	}
-	logrus.Warn("Query: ", question.Name, serverList)
+	//logrus.Warn("Query: ", question.Name, serverList)
 
 	switch question.Qtype {
 	case dns.TypeA, dns.TypeAAAA:

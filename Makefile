@@ -10,7 +10,7 @@ CONFIG_PATH=./config
 MODEL_PATH=./model
 
 all: build
-build:  linux mac win
+build:  linux_x86 mac win linux_arm
 test:
 	$(GOTEST) -v ./...
 clean:
@@ -23,11 +23,11 @@ clean:
 deps:
 	$(GOGET) -u -v  github.com/zartbot/zadns
 
-linux: $(info >> Starting build linux package...)
-	GOOS=linux GOARCH=amd64 $(GOBUILD) -ldflags="$(LDFLAGS)"  -o $(BINARY_PATH)/$(BINARY_NAME)_linux -v
-
+linux_x86: $(info >> Starting build linux package...)
+	GOOS=linux GOARCH=amd64 $(GOBUILD) -ldflags="$(LDFLAGS)"  -o $(BINARY_PATH)/$(BINARY_NAME)_linux_x86 -v
+linux_arm: $(info >> Starting build linux arm packet)
+	GOOS=linux GOARCH=arm64 $(GOBUILD) -ldflags="$(LDFLAGS)"  -o $(BINARY_PATH)/$(BINARY_NAME)_linux_arm -v
 mac:  $(info >> Starting build mac package...)
 	GOOS=darwin GOARCH=amd64 $(GOBUILD) -ldflags="$(LDFLAGS)" -o $(BINARY_PATH)/$(BINARY_NAME)_mac -v
-
 win:  $(info >> Starting build windows package...)
 	GOOS=windows GOARCH=amd64 $(GOBUILD) -ldflags="$(LDFLAGS)" -o $(BINARY_PATH)/$(BINARY_NAME)_win.exe -v

@@ -80,6 +80,20 @@ func lookup2Chan(msg *dns.Msg, server string, reportChan chan<- *DNSReport) {
 func Lookup(msg *dns.Msg, server string) (*dns.Msg, error) {
 	c := new(dns.Client)
 	c.Net = "udp"
+
+	/*
+		o := new(dns.OPT)
+		o.Hdr.Name = "."
+		o.Hdr.Rrtype = dns.TypeOPT
+		e := new(dns.EDNS0_SUBNET)
+		e.Code = dns.EDNS0SUBNET
+		e.Family = 1         //2 for V6
+		e.SourceNetmask = 32 //128 for values
+		e.SourceScope = 0
+		e.Address = net.ParseIP("101.2.3.4").To4()
+		o.Option = append(o.Option, e)
+		msg.Extra = append(msg.Extra, o)
+	*/
 	resp, _, err := c.Exchange(msg, server)
 	if err != nil {
 		return nil, err
