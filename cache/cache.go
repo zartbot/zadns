@@ -58,6 +58,8 @@ func (c *Cache) Get(key string) interface{} {
 }
 
 func (c *Cache) GetKeys() []string {
+	c.Lock.Lock()
+	defer c.Lock.Unlock()
 	result := make([]string, 0)
 	if place := c.freqs.Front(); place != nil {
 		for entry, _ := range place.Value.(*listEntry).entries {

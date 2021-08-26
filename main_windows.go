@@ -1,7 +1,7 @@
 package main
 
 import (
-	"regexp"
+	"time"
 
 	"github.com/miekg/dns"
 	"github.com/sirupsen/logrus"
@@ -10,13 +10,6 @@ import (
 
 func main() {
 	p := proxy.New("config\\route.cfg", "config\\hosts.cfg", "config\\server.cfg", "model\\geoip\\geoip.mmdb", "model\\geoip\\asn.mmdb")
-
-	exp := "aaa.*\\.cisco.com"
-	match1, _ := regexp.MatchString(exp, "aaa.www.cisco.com")
-	logrus.Warn(match1)
-	match, _ := regexp.MatchString(exp, "www.cisaco.com.cisco.com.aaaa.bbb")
-	logrus.Warn(match)
-
 	dns.HandleFunc(".", func(w dns.ResponseWriter, r *dns.Msg) {
 		//proxy logic
 		result, err := p.GetResponse(r)
@@ -33,6 +26,7 @@ func main() {
 		Addr: laddr,
 		Net:  "udp",
 	}
+	go p.TCPProbe(time.Second * 5)
 	err = server.ListenAndServe()
 	if err != nil {
 		logrus.Warn(err)

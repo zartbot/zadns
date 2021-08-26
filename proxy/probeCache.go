@@ -3,11 +3,14 @@ package proxy
 import (
 	"fmt"
 	"net"
+	"os"
 	"sort"
 	"sync/atomic"
 	"time"
 
+	"github.com/olekukonko/tablewriter"
 	"github.com/sirupsen/logrus"
+	"github.com/zartbot/zadns/geoip"
 )
 
 type ProbeMetric struct {
@@ -62,7 +65,7 @@ func (p *Proxy) probeStats() {
 			}
 
 			if resp.Duration > time.Second*5 {
-				newMetric.LossCnt += 1
+				newMetric.LossCnt = cachedMetric.LossCnt + 1
 			}
 			p.probeCache.Set(resp.DestIP, newMetric)
 		}
@@ -103,7 +106,8 @@ func (p *Proxy) GetFastResult(addrList []string) []string {
 		}
 	}
 	sort.Sort(sortList(metricList))
-	logrus.Info(metricList)
+	//DEBUG
+	go p.PrintCacheByList(metricList)
 
 	result := make([]string, 0)
 	for i := 0; i < len(metricList); i++ {
@@ -114,4 +118,51 @@ func (p *Proxy) GetFastResult(addrList []string) []string {
 		}
 	}
 	return result
+}
+
+func (p *Proxy) PrintProbeCacheTable() {
+	table := tablewriter.NewWriter(os.Stdout)
+
+	table.SetHeader([]string{"Addresss ", "ASN", "City", "Region", "Country", "Location", "Distance(KM)", "TCP Latency", "Loss"})
+	table.SetAutoFormatHeaders(false)
+
+	keys := p.probeCache.GetKeys()
+	for _, v := range keys {
+		result := p.geo.Lookup(v)
+		latency := time.Duration(0)
+		loss := float32(0)
+		metric := p.probeCache.Get(v)
+		if metric != nil {
+			latency = metric.(*CacheMetirc).Latency
+			loss = float32(metric.(*CacheMetirc).LossCnt) * 100 / float32(metric.(*CacheMetirc).ProbeCnt)
+
+		}
+
+		distance := geoip.ComputeDistance(31.02, 121.26, result.Latitude, result.Longitude)
+		table.Append([]string{v, fmt.Sprintf("%-30.30s", result.SPName), fmt.Sprintf("%-16.16s", result.City), fmt.Sprintf("%-16.16s", result.Region), fmt.Sprintf("%-16.16s", result.Country), fmt.Sprintf("%6.2f , %6.2f", result.Latitude, result.Longitude), fmt.Sprintf("%8.0f", distance), fmt.Sprintf("%12s", latency.String()), fmt.Sprintf("%6.2f%%", loss)})
+	}
+	table.Render()
+}
+
+func (p *Proxy) PrintCacheByList(s sortList) {
+	table := tablewriter.NewWriter(os.Stdout)
+
+	table.SetHeader([]string{"Addresss ", "ASN", "City", "Region", "Country", "Location", "Distance(KM)", "TCP Latency"})
+	table.SetAutoFormatHeaders(false)
+
+	for _, v := range s {
+		result := p.geo.Lookup(v.Address)
+		latency := time.Duration(0)
+		loss := float32(0)
+		metric := p.probeCache.Get(v.Address)
+		if metric != nil {
+			latency = metric.(*CacheMetirc).Latency
+			loss = float32(metric.(*CacheMetirc).LossCnt) * 100 / float32(metric.(*CacheMetirc).ProbeCnt)
+
+		}
+
+		distance := geoip.ComputeDistance(31.02, 121.26, result.Latitude, result.Longitude)
+		table.Append([]string{v.Address, fmt.Sprintf("%-30.30s", result.SPName), fmt.Sprintf("%-16.16s", result.City), fmt.Sprintf("%-16.16s", result.Region), fmt.Sprintf("%-16.16s", result.Country), fmt.Sprintf("%6.2f , %6.2f", result.Latitude, result.Longitude), fmt.Sprintf("%8.0f", distance), fmt.Sprintf("%12s", latency.String()), fmt.Sprintf("%6.2f%%", loss)})
+	}
+	table.Render()
 }

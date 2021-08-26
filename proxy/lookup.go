@@ -39,7 +39,7 @@ func (p *Proxy) RandomLookup(msg *dns.Msg, serverList []string) (*dns.Msg, error
 //Lookup record over multipler server return A/AAAA address list in string array
 
 func (p *Proxy) MultipleLookup(msg *dns.Msg, serverList []string) map[string]string {
-	t := time.NewTicker(1000 * time.Millisecond)
+	t := time.NewTicker(600 * time.Millisecond)
 	tmpMap := make(map[string]string, 0)
 	resp := make(chan *DNSReport, 10)
 	for _, s := range serverList {
