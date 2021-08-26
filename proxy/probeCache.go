@@ -54,16 +54,18 @@ func (p *Proxy) probeStats() {
 	for {
 		resp := <-p.ProbeChan
 		v := p.probeCache.Get(resp.DestIP)
-		cachedMetric := v.(*CacheMetirc)
-		newMetric := &CacheMetirc{
-			Latency:  resp.Duration,
-			ProbeCnt: cachedMetric.ProbeCnt + 1,
-		}
+		if v != nil {
+			cachedMetric := v.(*CacheMetirc)
+			newMetric := &CacheMetirc{
+				Latency:  resp.Duration,
+				ProbeCnt: cachedMetric.ProbeCnt + 1,
+			}
 
-		if resp.Duration > time.Second*5 {
-			newMetric.LossCnt += 1
+			if resp.Duration > time.Second*5 {
+				newMetric.LossCnt += 1
+			}
+			p.probeCache.Set(resp.DestIP, newMetric)
 		}
-		p.probeCache.Set(resp.DestIP, newMetric)
 	}
 }
 
@@ -106,7 +108,8 @@ func (p *Proxy) GetFastResult(addrList []string) []string {
 	result := make([]string, 0)
 	for i := 0; i < len(metricList); i++ {
 		result = append(result, metricList[i].Address)
-		if i == 1 {
+		// only return 3 fastest server to client
+		if i == 2 {
 			break
 		}
 	}

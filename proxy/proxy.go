@@ -14,6 +14,7 @@ import (
 func (p *Proxy) GetResponse(req *dns.Msg) (*dns.Msg, error) {
 	resp := new(dns.Msg)
 	resp.SetReply(req)
+
 	if len(req.Question) == 0 {
 		return resp, nil
 	}
@@ -53,7 +54,9 @@ func (p *Proxy) GetResponse(req *dns.Msg) (*dns.Msg, error) {
 
 				addrList := make([]string, 0)
 				for k, _ := range records {
-					probeValue := &CacheMetirc{}
+					probeValue := &CacheMetirc{
+						Latency: time.Second * 100,
+					}
 					p.probeCache.Update(k, probeValue)
 					addrList = append(addrList, k)
 				}
