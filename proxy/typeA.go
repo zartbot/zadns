@@ -22,7 +22,7 @@ func DecodeTypeAResponse(answer []dns.RR) []string {
 	return addressList
 }
 
-func (p *Proxy) GetFromCache(question string, qtype uint16) []dns.RR {
+func (p *Proxy) GetFromCache(question string, qtype uint16) []string {
 	var cacheFound bool = false
 	var cacheResult interface{}
 
@@ -32,20 +32,25 @@ func (p *Proxy) GetFromCache(question string, qtype uint16) []dns.RR {
 		cacheResult, cacheFound = p.cacheAAAA.Load(question)
 	}
 
-	result := make([]dns.RR, 0)
 	if cacheFound {
-		rrList := cacheResult.([]string)
-		for _, v := range rrList {
-			if qtype == dns.TypeA {
-				answer, err := dns.NewRR(fmt.Sprintf("%s A %s", question, v))
-				if err == nil {
-					result = append(result, answer)
-				}
-			} else {
-				answer, err := dns.NewRR(fmt.Sprintf("%s AAAA %s", question, v))
-				if err == nil {
-					result = append(result, answer)
-				}
+		return cacheResult.([]string)
+	}
+	return make([]string, 0)
+}
+
+func BuildRR(rrList []string, question string, qtype uint16) []dns.RR {
+	result := make([]dns.RR, 0)
+
+	for _, v := range rrList {
+		if qtype == dns.TypeA {
+			answer, err := dns.NewRR(fmt.Sprintf("%s A %s", question, v))
+			if err == nil {
+				result = append(result, answer)
+			}
+		} else {
+			answer, err := dns.NewRR(fmt.Sprintf("%s AAAA %s", question, v))
+			if err == nil {
+				result = append(result, answer)
 			}
 		}
 	}

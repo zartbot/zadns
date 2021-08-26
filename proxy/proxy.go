@@ -33,31 +33,31 @@ func (p *Proxy) GetResponse(req *dns.Msg) (*dns.Msg, error) {
 	case dns.TypeA, dns.TypeAAAA:
 		{
 			//DEBUG multilookup
-			vaddList := p.MultipleLookup(req, serverList)
-			p.TableRender(question.Name, vaddList)
 
-			answer := p.GetFromCache(question.Name, question.Qtype)
-			if len(answer) > 0 {
+			/*
+				vaddList := p.MultipleLookup(req, serverList)
+				p.TableRender(question.Name, vaddList)
+			*/
+
+			cacheList := p.GetFromCache(question.Name, question.Qtype)
+			bestList := p.GetFastResult(cacheList)
+
+			if len(bestList) > 0 {
+				answer := BuildRR(bestList, question.Name, question.Qtype)
 				resp.Answer = append(resp.Answer, answer...)
 			} else {
-
 				//check external Server
-
-				tResp, err := p.RandomLookup(req, serverList)
-				if err != nil {
-					return resp, err
-				}
-				//add to cache
-
-				addrList := DecodeTypeAResponse(tResp.Answer)
-
+				records := p.MultipleLookup(req, serverList)
+				p.TableRender(question.Name, records)
 				//TODO: IP Reputation and GeoIP validation
-				/*
-					for k, v := range addrList {
-						result := p.geo.Lookup(v)
-						logrus.Warn("[", k, "|", v, "|", question.Name, "]:", result)
-					}*/
 
+				addrList := make([]string, 0)
+				for k, _ := range records {
+					probeValue := &CacheMetirc{}
+					p.probeCache.Update(k, probeValue)
+					addrList = append(addrList, k)
+				}
+				resp.Answer = BuildRR(addrList, question.Name, question.Qtype)
 				if len(addrList) > 0 {
 					if question.Qtype == dns.TypeA {
 						p.cacheA.Store(question.Name, addrList, time.Now())
@@ -65,7 +65,7 @@ func (p *Proxy) GetResponse(req *dns.Msg) (*dns.Msg, error) {
 						p.cacheAAAA.Store(question.Name, addrList, time.Now())
 					}
 				}
-				return tResp, nil
+				return resp, nil
 			}
 		}
 	default:

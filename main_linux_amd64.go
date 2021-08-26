@@ -1,6 +1,8 @@
 package main
 
 import (
+	"time"
+
 	"github.com/miekg/dns"
 	"github.com/sirupsen/logrus"
 	"github.com/zartbot/zadns/dga"
@@ -41,6 +43,7 @@ func main() {
 		Addr: laddr,
 		Net:  "udp",
 	}
+	go p.TCPProbe(time.Second * 5)
 	err = server.ListenAndServe()
 	if err != nil {
 		logrus.Warn(err)

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/rand"
 	"net"
+	"strings"
 	"time"
 
 	"github.com/miekg/dns"
@@ -81,19 +82,35 @@ func Lookup(msg *dns.Msg, server string) (*dns.Msg, error) {
 	c := new(dns.Client)
 	c.Net = "udp"
 
-	/*
-		o := new(dns.OPT)
-		o.Hdr.Name = "."
-		o.Hdr.Rrtype = dns.TypeOPT
-		e := new(dns.EDNS0_SUBNET)
-		e.Code = dns.EDNS0SUBNET
-		e.Family = 1         //2 for V6
-		e.SourceNetmask = 32 //128 for values
-		e.SourceScope = 0
-		e.Address = net.ParseIP("101.2.3.4").To4()
-		o.Option = append(o.Option, e)
-		msg.Extra = append(msg.Extra, o)
-	*/
+	resp, _, err := c.Exchange(msg, server)
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
+//LookupWithClientEDNS is used to get the response from external server
+func LookupWithClientEDNS(msg *dns.Msg, server string, client string) (*dns.Msg, error) {
+	c := new(dns.Client)
+	c.Net = "udp"
+	o := new(dns.OPT)
+	o.Hdr.Name = "."
+	o.Hdr.Rrtype = dns.TypeOPT
+	e := new(dns.EDNS0_SUBNET)
+	e.Code = dns.EDNS0SUBNET
+	e.SourceScope = 0
+	if strings.Contains(client, ":") {
+		e.Family = 2
+		e.SourceNetmask = 128
+		e.Address = net.ParseIP(client).To16()
+	} else {
+		e.Family = 1
+		e.SourceNetmask = 32
+		e.Address = net.ParseIP(client).To4()
+	}
+	o.Option = append(o.Option, e)
+	msg.Extra = append(msg.Extra, o)
+
 	resp, _, err := c.Exchange(msg, server)
 	if err != nil {
 		return nil, err
