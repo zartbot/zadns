@@ -1,9 +1,8 @@
 package main
 
 import (
-	"fmt"
-
 	"github.com/miekg/dns"
+	"github.com/natefinch/lumberjack"
 	"github.com/sirupsen/logrus"
 	"github.com/zartbot/zadns/dga"
 	"github.com/zartbot/zadns/proxy"
@@ -14,26 +13,43 @@ func main() {
 	p := proxy.New("config/route.cfg", "config/hosts.cfg", "config/server.cfg", "model/geoip/geoip.mmdb", "model/geoip/asn.mmdb")
 	//p.LogLevel = "debug"
 
+	l := lumberjack.Logger{
+		Filename:   "log/request.log",
+		MaxSize:    500, // megabytes
+		MaxBackups: 3,
+		MaxAge:     28,   //days
+		Compress:   true, // disabled by default
+	}
+	logrus.SetOutput(&l)
+
 	dgaModel := dga.New("./model/dga")
 
 	dns.HandleFunc(".", func(w dns.ResponseWriter, r *dns.Msg) {
 		if len(r.Question) == 0 {
 			return
 		}
-		//TODO : Dump Request.Name/Type and Request IP for security check
-		//Add Rotate Logs ? https://github.com/natefinch/lumberjack
-		fmt.Printf("%20s|%d|%8d|%-60s\n", w.RemoteAddr().String(), len(r.Question), r.Question[0].Qtype, r.Question[0].Name)
 
 		question := r.Question[0]
 		//DGA Domain security check
 		isDGA := dgaModel.Predict(question.Name)
 		if isDGA {
-			logrus.Warn("DGA: ", question.Name)
+			logrus.WithFields(logrus.Fields{
+				"Security": "DGA Warning",
+				"client":   w.RemoteAddr().String(),
+				"Qtype":    question.Qtype,
+			}).Warn(question.Name)
+
 			resp := new(dns.Msg)
 			resp.SetReply(r)
 			w.WriteMsg(resp)
 			return
 		}
+
+		logrus.WithFields(logrus.Fields{
+			"client": w.RemoteAddr().String(),
+			"Qtype":  question.Qtype,
+		}).Info(question.Name)
+
 		//proxy logic
 		result, err := p.GetResponse(r)
 		if err == nil {

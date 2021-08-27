@@ -54,7 +54,7 @@ func (p *Proxy) GetResponse(req *dns.Msg) (*dns.Msg, error) {
 				} //TODO: IP Reputation and GeoIP validation
 
 				addrList := make([]string, 0)
-				for k, _ := range records {
+				for k := range records {
 					cacheEntry := &ProbeCacheEntry{
 						Latency: time.Second * 120,
 					}
@@ -72,8 +72,8 @@ func (p *Proxy) GetResponse(req *dns.Msg) (*dns.Msg, error) {
 						p.typeAAAACache.Store(question.Name, addrList, time.Now())
 					}
 				}
-				return resp, nil
 			}
+			return resp, nil
 		}
 	default:
 		{
