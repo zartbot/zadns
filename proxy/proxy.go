@@ -28,44 +28,48 @@ func (p *Proxy) GetResponse(req *dns.Msg) (*dns.Msg, error) {
 	} else {
 		serverList = append(serverList, p.server...)
 	}
-	//logrus.Warn("Query: ", question.Name, serverList)
 
 	switch question.Qtype {
 	case dns.TypeA, dns.TypeAAAA:
 		{
-			//DEBUG multilookup
-
-			/*
-				vaddList := p.MultipleLookup(req, serverList)
-				p.TableRender(question.Name, vaddList)
-			*/
-
 			cacheList := p.GetFromCache(question.Name, question.Qtype)
-			bestList := p.GetFastResult(cacheList)
+			bestList := p.SortByLatency(cacheList)
 
 			if len(bestList) > 0 {
-				answer := BuildRR(bestList, question.Name, question.Qtype)
-				resp.Answer = append(resp.Answer, answer...)
+				if p.LogLevel == "debug" {
+					p.RenderProbeCacheList(bestList)
+				}
+				if len(bestList) > p.BestRecordNum {
+					answer := BuildRR(bestList[:p.BestRecordNum], question.Name, question.Qtype)
+					resp.Answer = append(resp.Answer, answer...)
+				} else {
+					answer := BuildRR(bestList, question.Name, question.Qtype)
+					resp.Answer = append(resp.Answer, answer...)
+				}
 			} else {
 				//check external Server
 				records := p.MultipleLookup(req, serverList)
-				p.TableRender(question.Name, records)
-				//TODO: IP Reputation and GeoIP validation
+				if p.LogLevel == "debug" {
+					p.TableRender(question.Name, records)
+				} //TODO: IP Reputation and GeoIP validation
 
 				addrList := make([]string, 0)
 				for k, _ := range records {
-					probeValue := &CacheMetirc{
-						Latency: time.Second * 100,
+					cacheEntry := &ProbeCacheEntry{
+						Latency: time.Second * 120,
 					}
-					p.probeCache.Update(k, probeValue)
+					isNew := p.probeCache.Update(k, cacheEntry)
+					if isNew {
+						go p.TCPPing(k, p.ProbeDport)
+					}
 					addrList = append(addrList, k)
 				}
 				resp.Answer = BuildRR(addrList, question.Name, question.Qtype)
 				if len(addrList) > 0 {
 					if question.Qtype == dns.TypeA {
-						p.cacheA.Store(question.Name, addrList, time.Now())
+						p.typeACache.Store(question.Name, addrList, time.Now())
 					} else {
-						p.cacheAAAA.Store(question.Name, addrList, time.Now())
+						p.typeAAAACache.Store(question.Name, addrList, time.Now())
 					}
 				}
 				return resp, nil
@@ -81,6 +85,10 @@ func (p *Proxy) GetResponse(req *dns.Msg) (*dns.Msg, error) {
 }
 
 func (p *Proxy) TableRender(name string, addrList map[string]string) {
+
+	if len(addrList) == 0 {
+		return
+	}
 	fmt.Printf("[%s] DNS Lookup Result\n\n", name)
 
 	table := tablewriter.NewWriter(os.Stdout)
@@ -90,8 +98,28 @@ func (p *Proxy) TableRender(name string, addrList map[string]string) {
 
 	for k, v := range addrList {
 		result := p.geo.Lookup(k)
-		distance := geoip.ComputeDistance(31.02, 121.26, result.Latitude, result.Longitude)
-		table.Append([]string{k, fmt.Sprintf("%-30.30s", result.SPName), fmt.Sprintf("%-16.16s", result.City), fmt.Sprintf("%-16.16s", result.Region), fmt.Sprintf("%-16.16s", result.Country), fmt.Sprintf("%6.2f , %6.2f", result.Latitude, result.Longitude), fmt.Sprintf("%8.0f", distance), v})
+
+		spStr := fmt.Sprintf("%-30.30s", result.SPName)
+		cityStr := fmt.Sprintf("%-16.16s", result.City)
+		regionStr := fmt.Sprintf("%-16.16s", result.Region)
+		countryStr := fmt.Sprintf("%-16.16s", result.Country)
+		geoStr := fmt.Sprintf("%6.2f , %6.2f", result.Latitude, result.Longitude)
+
+		distance := geoip.ComputeDistance(p.Latitude, p.Longitude, result.Latitude, result.Longitude)
+
+		latencyByDistance := distance / 75
+
+		/*
+		  LightSpeed over Fiber is nearly 150,000km/s
+		  RTT(ms) = distance *2 / Fiber_LightSpeed *1000 = 2 * distance /150,000 * 1000 = distance /100
+		  Each hop contribute 3ms latency,based on average QoS and forwarding latency estimation
+		*/
+		distanceStr := fmt.Sprintf("%6.0fkm[%3.0fms]", distance, latencyByDistance)
+		if result.Latitude == 0 && result.Longitude == 0 {
+			distanceStr = fmt.Sprintf("%12s", "")
+		}
+
+		table.Append([]string{k, spStr, cityStr, regionStr, countryStr, geoStr, distanceStr, v})
 	}
 	table.Render()
 }

@@ -93,7 +93,8 @@ func (c *Cache) Set(key string, value interface{}) {
 	}
 }
 
-func (c *Cache) Update(key string, value interface{}) {
+func (c *Cache) Update(key string, value interface{}) bool {
+	isNew := false
 	c.Lock.Lock()
 	defer c.Lock.Unlock()
 	if e, ok := c.values[key]; ok {
@@ -107,13 +108,19 @@ func (c *Cache) Update(key string, value interface{}) {
 		c.values[key] = e
 		c.increment(e)
 		c.len++
+		isNew = true
+
 		// bounds mgmt
 		if c.UpperBound > 0 && c.LowerBound > 0 {
 			if c.len > c.UpperBound {
-				c.evict(c.len - c.LowerBound)
+				n := c.evict(c.len - c.LowerBound)
+				if n > 0 {
+					isNew = false
+				}
 			}
 		}
 	}
+	return isNew
 }
 
 func (c *Cache) Len() int {

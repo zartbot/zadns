@@ -27,9 +27,9 @@ func (p *Proxy) GetFromCache(question string, qtype uint16) []string {
 	var cacheResult interface{}
 
 	if qtype == dns.TypeA {
-		cacheResult, cacheFound = p.cacheA.Load(question)
+		cacheResult, cacheFound = p.typeACache.Load(question)
 	} else {
-		cacheResult, cacheFound = p.cacheAAAA.Load(question)
+		cacheResult, cacheFound = p.typeAAAACache.Load(question)
 	}
 
 	if cacheFound {

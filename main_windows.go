@@ -1,8 +1,6 @@
 package main
 
 import (
-	"time"
-
 	"github.com/miekg/dns"
 	"github.com/sirupsen/logrus"
 	"github.com/zartbot/zadns/proxy"
@@ -22,11 +20,13 @@ func main() {
 	if err != nil {
 		logrus.Fatal("noRoutedAddress:", err)
 	}
+
+	go p.TCPProbe()
+
 	server := &dns.Server{
 		Addr: laddr,
 		Net:  "udp",
 	}
-	go p.TCPProbe(time.Second * 5)
 	err = server.ListenAndServe()
 	if err != nil {
 		logrus.Warn(err)

@@ -4,7 +4,6 @@ import (
 	"github.com/miekg/dns"
 	"github.com/sirupsen/logrus"
 	"github.com/zartbot/zadns/proxy"
-	"time"
 )
 
 func main() {
@@ -18,6 +17,8 @@ func main() {
 		}
 	})
 
+	go p.TCPProbe()
+
 	laddr, err := proxy.RoutedAddress()
 	if err != nil {
 		logrus.Fatal("noRoutedAddress:", err)
@@ -26,7 +27,6 @@ func main() {
 		Addr: laddr,
 		Net:  "udp",
 	}
-	go p.TCPProbe(time.Second * 5)
 	err = server.ListenAndServe()
 	if err != nil {
 		logrus.Warn(err)
