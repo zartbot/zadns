@@ -124,8 +124,10 @@ func (p *Proxy) RenderProbeCacheList(s []string) {
 	}
 	table := tablewriter.NewWriter(os.Stdout)
 
-	table.SetHeader([]string{"Addresss ", "ASN", "City", "Region", "Country", "Location", "Distance(KM)", "TCP Latency", "Loss"})
+	table.SetHeader([]string{"Addresss ", "SP", "ASN", "City", "Region", "Country", "Location", "Distance(KM)", "TCP Latency", "Loss"})
 	table.SetAutoFormatHeaders(false)
+	table.SetAutoWrapText(false)
+	//table.SetRowLine(true)
 
 	for _, v := range s {
 		result := p.geo.Lookup(v)
@@ -138,7 +140,8 @@ func (p *Proxy) RenderProbeCacheList(s []string) {
 
 		}
 
-		spStr := fmt.Sprintf("%-30.30s", result.SPName)
+		spStr := fmt.Sprintf("%-40.40s", result.SPName)
+		asnStr := fmt.Sprintf("%d", result.ASN)
 		cityStr := fmt.Sprintf("%-16.16s", result.City)
 		regionStr := fmt.Sprintf("%-16.16s", result.Region)
 		countryStr := fmt.Sprintf("%-16.16s", result.Country)
@@ -157,9 +160,9 @@ func (p *Proxy) RenderProbeCacheList(s []string) {
 		if result.Latitude == 0 && result.Longitude == 0 {
 			distanceStr = fmt.Sprintf("%12s", "")
 		}
-		latencyStr := fmt.Sprintf("%8.2dms", latency.Milliseconds())
+		latencyStr := fmt.Sprintf("%8dms", latency.Milliseconds())
 
-		table.Append([]string{v, spStr, cityStr, regionStr, countryStr, geoStr, distanceStr, latencyStr, fmt.Sprintf("%6.2f%%", loss)})
+		table.Append([]string{v, spStr, asnStr, cityStr, regionStr, countryStr, geoStr, distanceStr, latencyStr, fmt.Sprintf("%6.2f%%", loss)})
 	}
 	table.Render()
 }

@@ -21,7 +21,7 @@ func main() {
 			return
 		}
 		//TODO : Dump Request.Name/Type and Request IP for security check
-		fmt.Printf("%20s|%d|%8d|%40s\n", w.RemoteAddr().String(), len(r.Question), r.Question[0].Qtype, r.Question[0].Name)
+		fmt.Printf("%20s|%d|%8d|%-60s\n", w.RemoteAddr().String(), len(r.Question), r.Question[0].Qtype, r.Question[0].Name)
 
 		question := r.Question[0]
 		//DGA Domain security check

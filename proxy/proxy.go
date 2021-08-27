@@ -93,17 +93,20 @@ func (p *Proxy) TableRender(name string, addrList map[string]string) {
 
 	table := tablewriter.NewWriter(os.Stdout)
 
-	table.SetHeader([]string{"Addresss ", "ASN", "City", "Region", "Country", "Location", "Distance(KM)", "DNS Server"})
+	table.SetHeader([]string{"Addresss ", "SPName", "ASN", "City", "Region", "Country", "Distance(KM)", "DNS Server"})
 	table.SetAutoFormatHeaders(false)
+	//table.SetAutoWrapText(false)
+	table.SetRowLine(true)
 
 	for k, v := range addrList {
 		result := p.geo.Lookup(k)
 
-		spStr := fmt.Sprintf("%-30.30s", result.SPName)
+		spStr := fmt.Sprintf("%-40.40s", result.SPName)
+		asnStr := fmt.Sprintf("%d", result.ASN)
 		cityStr := fmt.Sprintf("%-16.16s", result.City)
 		regionStr := fmt.Sprintf("%-16.16s", result.Region)
 		countryStr := fmt.Sprintf("%-16.16s", result.Country)
-		geoStr := fmt.Sprintf("%6.2f , %6.2f", result.Latitude, result.Longitude)
+		//geoStr := fmt.Sprintf("%6.2f , %6.2f", result.Latitude, result.Longitude)
 
 		distance := geoip.ComputeDistance(p.Latitude, p.Longitude, result.Latitude, result.Longitude)
 
@@ -119,7 +122,7 @@ func (p *Proxy) TableRender(name string, addrList map[string]string) {
 			distanceStr = fmt.Sprintf("%12s", "")
 		}
 
-		table.Append([]string{k, spStr, cityStr, regionStr, countryStr, geoStr, distanceStr, v})
+		table.Append([]string{k, spStr, asnStr, cityStr, regionStr, countryStr, distanceStr, v})
 	}
 	table.Render()
 }
