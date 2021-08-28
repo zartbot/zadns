@@ -1,18 +1,20 @@
 # zaDNS
 zaDNS is a simple DNS forwarder with AI based security policy.
 
+![](https://github.com/zartbot/zadns/blob/main/zadns.gif?raw=true)
+
 ## 1. Support Features
 
 ### 1.1 Domain based Routing
 
 you can modify `config/route.cfg` to defined a route table to proccess dns request to different server based on domain
 
-`:` is used for seperate domain and dns-server address
+`|` is used for seperate domain and dns-server address
 `,` is used for multiple dns-server
 
 ```
-cisco.com:  8.8.8.8,4.4.4.4
-google.com: 8.8.8.8
+cisco.com|  8.8.8.8,4.4.4.4
+google.com| 8.8.8.8
 ```
 ### 1.2 Geo based policy
 All `A/AAAA` record will trigger GeoIP lookup, you could define your own logic to block some countries or based on Geo Infomation choose the nearest host.

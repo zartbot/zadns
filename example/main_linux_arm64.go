@@ -1,14 +1,39 @@
 package main
 
 import (
+	"flag"
+	"fmt"
 	"github.com/miekg/dns"
 	"github.com/natefinch/lumberjack"
 	"github.com/sirupsen/logrus"
 	"github.com/zartbot/zadns/proxy"
+	"os"
 )
 
+var cmd = struct {
+	debug bool
+	lat   float64
+	long  float64
+}{
+
+	false,
+	31.02,
+	121.1,
+}
+
+func init() {
+	flag.BoolVar(&cmd.debug, "debug", cmd.debug, "Debug mode")
+	flag.Float64Var(&cmd.lat, "lat", cmd.lat, "Latitude")
+	flag.Float64Var(&cmd.lat, "long", cmd.long, "Longitude")
+	flag.Parse()
+}
+
 func main() {
+
 	p := proxy.New("config/route.cfg", "config/hosts.cfg", "config/server.cfg", "model/geoip/geoip.mmdb", "model/geoip/asn.mmdb")
+	if cmd.debug {
+		p.LogLevel = "debug"
+	}
 
 	l := lumberjack.Logger{
 		Filename:   "log/request.log",
@@ -32,20 +57,20 @@ func main() {
 		}
 	})
 
-	laddr, err := proxy.RoutedAddress()
-	if err != nil {
-		logrus.Fatal("noRoutedAddress:", err)
-	}
-
 	go p.TCPProbe()
 
+	laddr, err := proxy.RoutedAddress()
+	if err != nil {
+		fmt.Printf("noRoutedAddress: %v\n", err)
+		os.Exit(1)
+	}
 	server := &dns.Server{
 		Addr: laddr,
 		Net:  "udp",
 	}
-
 	err = server.ListenAndServe()
 	if err != nil {
-		logrus.Warn(err)
+		fmt.Printf("listen failed: %v\n", err)
+		os.Exit(1)
 	}
 }

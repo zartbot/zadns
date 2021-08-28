@@ -19,16 +19,21 @@ func ReadCfg(filename string) map[string][]string {
 	scanner := bufio.NewScanner(file)
 	result := make(map[string][]string, 0)
 	for scanner.Scan() {
-		record := strings.Split(scanner.Text(), ":")
+		line := strings.TrimSpace(scanner.Text())
+		if len(line) == 0 {
+			continue
+		}
+		record := strings.Split(line, "|")
 		if len(record) != 2 {
-			logrus.Fatal("invalid config found")
+			logrus.Fatal("invalid config found:", filename, "|", record)
 		}
 
 		key := strings.TrimSpace(record[0])
 		values := strings.Split(strings.TrimSpace(record[1]), ",")
 		if len(values) > 0 {
-			for _, v := range values {
-				if net.ParseIP(v) == nil {
+			for k, v := range values {
+				values[k] = strings.TrimSpace(v)
+				if net.ParseIP(values[k]) == nil {
 					logrus.Fatal("invalid server address: ", v, "@", key)
 				}
 			}

@@ -3,6 +3,7 @@ package proxy
 import (
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/miekg/dns"
@@ -35,17 +36,27 @@ func (p *Proxy) GetResponse(req *dns.Msg) (*dns.Msg, error) {
 			cacheList := p.GetFromCache(question.Name, question.Qtype)
 			bestList := p.SortByLatency(cacheList)
 
-			if len(bestList) > 0 {
-				if p.LogLevel == "debug" {
-					p.RenderProbeCacheList(bestList)
+			//Cache found
+			if len(cacheList) > 0 {
+
+				//if has best result
+				if len(bestList) > 0 {
+					if p.LogLevel == "debug" {
+						p.RenderProbeCacheList(bestList)
+					}
+					if len(bestList) > p.BestRecordNum {
+						answer := BuildRR(bestList[:p.BestRecordNum], question.Name, question.Qtype)
+						resp.Answer = append(resp.Answer, answer...)
+					} else {
+						answer := BuildRR(bestList, question.Name, question.Qtype)
+						resp.Answer = append(resp.Answer, answer...)
+					}
+					return resp, nil
 				}
-				if len(bestList) > p.BestRecordNum {
-					answer := BuildRR(bestList[:p.BestRecordNum], question.Name, question.Qtype)
-					resp.Answer = append(resp.Answer, answer...)
-				} else {
-					answer := BuildRR(bestList, question.Name, question.Qtype)
-					resp.Answer = append(resp.Answer, answer...)
-				}
+				//else directly send cacheList to client
+				answer := BuildRR(cacheList, question.Name, question.Qtype)
+				resp.Answer = append(resp.Answer, answer...)
+				return resp, nil
 			} else {
 				//check external Server
 				records := p.MultipleLookup(req, serverList)
@@ -71,8 +82,50 @@ func (p *Proxy) GetResponse(req *dns.Msg) (*dns.Msg, error) {
 					} else {
 						p.typeAAAACache.Store(question.Name, addrList, time.Now())
 					}
+					for i := 0; i < len(addrList); i++ {
+						p.PTRCache.Store(addrList[i], question.Name, time.Now())
+					}
 				}
 			}
+			return resp, nil
+		}
+	case dns.TypePTR:
+		{
+
+			parts := strings.Split(req.Question[0].Name, "in-addr.arpa.")
+			if strings.HasSuffix(req.Question[0].Name, "ip6.arpa.") {
+				parts = strings.Split(req.Question[0].Name, "ip6.arpa.")
+			}
+
+			if len(parts) != 2 {
+				return nil, fmt.Errorf("invalid PTR query, %v", req.Question[0].Name)
+			}
+
+			host := ConvPTRtoIP(parts[0])
+			if len(host) == 0 {
+				return nil, fmt.Errorf("invalid PTR query, %v", req.Question[0].Name)
+			}
+
+			result, ok := p.PTRCache.Load(host)
+
+			if !ok {
+				resp, err := p.RandomLookup(req, serverList)
+				return resp, err
+			}
+
+			if p.LogLevel == "debug" {
+				fmt.Printf("PTR:%s|%s|%s\n", req.Question[0].Name, host, result)
+			}
+
+			rr := new(dns.PTR)
+			rr.Hdr = dns.RR_Header{
+				Name:   req.Question[0].Name,
+				Rrtype: dns.TypePTR,
+				Class:  dns.ClassINET,
+				Ttl:    0,
+			}
+			rr.Ptr = result.(string)
+			resp.Answer = append(resp.Answer, rr)
 			return resp, nil
 		}
 	default:
@@ -81,7 +134,7 @@ func (p *Proxy) GetResponse(req *dns.Msg) (*dns.Msg, error) {
 			return resp, err
 		}
 	}
-	return resp, nil
+
 }
 
 func (p *Proxy) TableRender(name string, addrList map[string]string) {
