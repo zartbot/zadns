@@ -1,7 +1,7 @@
 # zaDNS
 zaDNS is a simple DNS forwarder with AI based security policy.
 
-![](https://github.com/zartbot/zadns/blob/main/zadns.gif?raw=true)
+![](https://raw.githubusercontent.com/zartbot/zadns/master/zadns.gif)
 
 ## 1. Support Features
 
