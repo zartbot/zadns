@@ -44,13 +44,13 @@ func BuildRR(rrList []string, question string, qtype uint16) []dns.RR {
 	for _, v := range rrList {
 		if qtype == dns.TypeA {
 			answer, err := dns.NewRR(fmt.Sprintf("%s A %s", question, v))
-			answer.Header().Ttl = 0
+			answer.Header().Ttl = 1
 			if err == nil {
 				result = append(result, answer)
 			}
 		} else {
 			answer, err := dns.NewRR(fmt.Sprintf("%s AAAA %s", question, v))
-			answer.Header().Ttl = 0
+			answer.Header().Ttl = 1
 			if err == nil {
 				result = append(result, answer)
 			}
